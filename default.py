@@ -78,13 +78,11 @@ def addLinks(elem):
         # tu= (node.findtext("url"),liz)
         song_elem = node.find("song")
         song_id = int(node.attrib["id"])
-        print "SONGID: "+str(song_id)
         action = 'XBMC.RunPlugin(%s?object_id=%s&mode=10)' % ( sys.argv[0],song_id )
         cm.append( ( "Set as Alarm", action  ) )
         liz.addContextMenuItems(cm)
         track_parameters = { "mode": 8, "object_id": song_id}
         url = sys.argv[0] + '?' + urllib.urlencode(track_parameters)
-        print "URL: "+url
         tu= (url,liz)
         li.append(tu)
     ok=xbmcplugin.addDirectoryItems(handle=int(sys.argv[1]),items=li,totalItems=len(elem))
@@ -106,12 +104,14 @@ def play_alarm():
 def addDir(name,object_id,mode,iconimage,elem=None):
     liz=xbmcgui.ListItem(name, iconImage="DefaultFolder.png", thumbnailImage=iconimage)
     liz.setInfo( type="Music", infoLabels={ "Title": name } )
-    if elem:
+    try:
         artist_elem = elem.find("artist")
         artist_id = int(artist_elem.attrib["id"]) 
         cm = []
         cm.append( ( "Show all albums from artist", "XBMC.Container.Update(%s?object_id=%s&mode=2)" % ( sys.argv[0],artist_id ) ) )
         liz.addContextMenuItems(cm)
+    except:
+        pass
     u=sys.argv[0]+"?object_id="+str(object_id)+"&mode="+str(mode)+"&name="+urllib.quote_plus(name)
     ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=u,listitem=liz,isFolder=True)
     return ok
@@ -201,7 +201,6 @@ def get_items(object_type, artist=None, add=None, filter=None):
     if object_type == 'artists':
         mode = 2
         image = "DefaultFolder.png"
-        sendNode = None
     elif object_type == 'albums':
         mode = 3
     for node in elem:
