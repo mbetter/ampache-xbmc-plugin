@@ -218,26 +218,8 @@ def GETSONGS(objectid=None,filter=None,add=None,limit=5000,offset=0):
         filter = objectid
     else:
         action = 'songs'
-        
-    thisURL = build_ampache_url(action,filter=filter,add=add)
-    req = urllib2.Request(thisURL)
-    response = urllib2.urlopen(req)
-    tree=ET.parse(response)
-    response.close()
-    elem = tree.getroot()
-    if elem.findtext("error"):
-        errornode = elem.find("error")
-        if errornode.attrib["code"]=="401":
-            elem = AMPACHECONNECT()
-            thisURL = build_ampache_url(action,filter=filter)
-            req = urllib2.Request(thisURL)
-            response = urllib2.urlopen(req)
-            tree=ET.parse(response)
-            response.close()
-            elem = tree.getroot()
+    elem = ampache_http_request(action,add=add,filter=filter)
     addLinks(elem)
-#    for node in elem:
-#        addLink(node.findtext("title").encode("utf-8"),node.findtext("url"),node.findtext("art"),node)
 
 def build_ampache_url(action,filter=None,add=None,limit=5000,offset=0):
     tokenexp = int(ampache.getSetting('token-exp'))
@@ -265,22 +247,7 @@ def get_random_albums():
     print random_albums
     seq = random.sample(xrange(albums),random_albums)
     for album_id in seq:
-        thisURL = build_ampache_url('albums',offset=album_id,limit=1)
-        req = urllib2.Request(thisURL)
-        response = urllib2.urlopen(req)
-        tree=ET.parse(response)
-        response.close()
-        elem = tree.getroot()
-        if elem.findtext("error"):
-       	    errornode = elem.find("error")
-	    if errornode.attrib["code"]=="401":
-			elem = AMPACHECONNECT()
-			thisURL = build_ampache_url(action,filter=filter)
-			req = urllib2.Request(thisURL)
-			response = urllib2.urlopen(req)
-			tree=ET.parse(response)
-			response.close()
-			elem = tree.getroot()
+        elem = ampache_http_request('albums',offset=album_id,limit=1)
         for node in elem:
 	    fullname = node.findtext("name").encode("utf-8")
 	    fullname += " - "
