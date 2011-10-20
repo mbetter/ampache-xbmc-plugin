@@ -19,16 +19,12 @@ except ImportError:
             """ fake xbmcaddon.Addon class """
             def __init__(self, id):
                 self.id = id
-
             def getSetting(self, key):
                 return xbmcplugin.getSetting(key)
-
             def setSetting(self, key, value):
                 xbmcplugin.setSetting(key, value)
-
             def openSettings(self, key, value):
                 xbmc.openSettings()
-
             def getLocalizedString(self, id):
                 return xbmc.getLocalizedString(id)
 
@@ -44,9 +40,6 @@ def enableAlarm():
         wait_mins = ((alarm_hour - current_hour) * 60) - current_minute + alarm_minute
     elif (current_hour > alarm_hour) or ((current_hour == alarm_hour) and (current_minute > alarm_minute)):
         wait_mins = ((23 - current_hour) * 60) + (60 - current_minute) + (alarm_hour * 60) + alarm_minute
-    print alarm_hour
-    print alarm_minute        
-    print wait_mins
     execCMD = 'PlayMedia(plugin://plugin.audio.ampache/?mode=9)'
     builtinCMD = 'XBMC.AlarmClock(%s,%s,%s)' % ('myAlarm', execCMD, wait_mins)
     xbmc.executebuiltin(builtinCMD.encode('latin-1'))
@@ -55,6 +48,7 @@ def cancelAlarm():
     builtinCMD = 'XBMC.CancelAlarm(myAlarm)'
     xbmc.executebuiltin(builtinCMD.encode('latin-1'))
 
+# called from a context menu on a song object
 def setAlarm(object_id):
     ampache.setSetting(id='alarm_song', value=str(object_id) )
     
@@ -65,6 +59,9 @@ def addLink(name,url,iconimage,node):
         ok=xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]),url=url,listitem=liz)
         return ok
 
+# Used to populate items for songs on XBMC. Calls plugin script with mode == 8 and object_id == (ampache song id)
+# TODO: Merge with addDir(). Same basic idea going on, this one adds links all at once, that one does it one at a time
+#       Also, some property things, some different context menu things.
 def addLinks(elem):
     xbmcplugin.setContent(int(sys.argv[1]), "songs")
     ok=True
@@ -75,7 +72,6 @@ def addLinks(elem):
         liz.setInfo( "music", { "title": node.findtext("title").encode("utf-8"), "artist": node.findtext("artist"), "album": node.findtext("album"), "ReleaseDate": str(node.findtext("year")) } )
         liz.setProperty("mimetype", 'audio/mpeg')
         liz.setProperty("IsPlayable", "true")
-        # tu= (node.findtext("url"),liz)
         song_elem = node.find("song")
         song_id = int(node.attrib["id"])
         action = 'XBMC.RunPlugin(%s?object_id=%s&mode=10)' % ( sys.argv[0],song_id )
@@ -88,6 +84,11 @@ def addLinks(elem):
     ok=xbmcplugin.addDirectoryItems(handle=int(sys.argv[1]),items=li,totalItems=len(elem))
     return ok
 
+# The function that actually plays an Ampache URL by using setResolvedUrl. Gotta have the extra step in order to make
+# song album art / play next automatically. We already have the track URL when we add the directory item so the api
+# hit here is really unnecessary. Would be nice to get rid of it, the extra request adds to song gaps. It does
+# guarantee that we are using a legit URL, though, if the session expired between the item being added and the actual
+# playing of that item.
 def play_track(id):
     ''' Start to stream the track with the given id. '''
     elem = ampache_http_request("song",filter=id)
@@ -97,10 +98,13 @@ def play_track(id):
     li.setInfo("music", { "title": node.findtext("title") })
     xbmcplugin.setResolvedUrl(handle=int(sys.argv[1]), succeeded=True, listitem=li)
 
+# Wrapper around play_track to make sure that we have a valid Ampache session.
+# TODO: We shouldn't force a new session if we already have one.
 def play_alarm():
     AMPACHECONNECT()
     play_track(ampache.getSetting('alarm_song'))
 
+# Main function for adding xbmc plugin elements
 def addDir(name,object_id,mode,iconimage,elem=None):
     liz=xbmcgui.ListItem(name, iconImage="DefaultFolder.png", thumbnailImage=iconimage)
     liz.setInfo( type="Music", infoLabels={ "Title": name } )
